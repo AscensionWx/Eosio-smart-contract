@@ -68,7 +68,9 @@ ACTION ascensionwx::newperiod( uint64_t period_start_time ) {
 
 }
 
-ACTION ascensionwx::addsensor( name devname ) {
+ACTION ascensionwx::addsensor( name devname,
+                              float latitude_city,
+                              float longitude_city ) {
 
   // Only own contract can add a new sensor
   require_auth( get_self() );
@@ -109,11 +111,19 @@ ACTION ascensionwx::addsensor( name devname ) {
     sensor.allow_new_memo = 1;
   });
 
+  string loc_accuracy;
+  if ( latitude_city != 0 || longitude_city != 0 )
+    loc_accuracy = "Low (Shipment city name)";
+  else
+    loc_accuracy = "None";
+
   // Create row in the weather table
   weather_table_t _weather(get_self(), get_first_receiver().value );
   _weather.emplace(get_self(), [&](auto& wthr) {
     wthr.devname = devname;
-    wthr.loc_accuracy = "None ";
+    wthr.latitude_deg = latitude_city;
+    wthr.longitude_deg = longitude_city;
+    wthr.loc_accuracy = loc_accuracy;
   });
 
   // Set rewards 
@@ -132,6 +142,99 @@ ACTION ascensionwx::addsensor( name devname ) {
 
 }
 
+ACTION ascensionwx::addevmminer( name devname, 
+                                 checksum160 evm_address ) {
+
+  require_auth(get_self());
+
+  miners_table_t _miners(get_self(), get_first_receiver().value);
+
+  rewards_table_t _rewards(get_self(), get_first_receiver().value);
+  auto rewards_itr = _rewards.find( devname.value );
+
+  // Convert checksum160 to string by
+  //   converting to hex and chopping off padded bytes
+  std::array<uint8_t, 32u> bytes = eosio_evm::fromChecksum160( evm_address );
+  string evm_address_str = "0x" + eosio_evm::bin2hex(bytes).substr(24);
+
+  bool miner_found = false;
+  
+  // First see if evm_address already in Miner's table. If it's already there copy that 
+  //     miner's name to devname's miner in rewards table
+  // NOTE: This lookup can be slow when there is large number of sensors, but of course
+  //     this action will be called by hand and not very frequently
+  
+  for ( auto miner_itr=_miners.begin(); miner_itr != _miners.end() ; miner_itr ++ ) {
+
+      // When EVM address matches copy miner's name to rewards table
+      if ( miner_itr->evm_address == evm_address_str ) {
+        auto rewards_itr = _rewards.find( devname.value );
+
+        // Bring miner's name to the rewards table
+        _rewards.modify(rewards_itr, get_self(), [&](auto& reward) {
+          reward.miner = miner_itr->miner;
+        });
+
+        miner_found = true;
+        break; // Exit for loop
+      }
+  } // end for loop
+  
+
+  // .  Finds upper bound of uint64_t conversion of in miners table evmminer5555
+  // .  (should be something like evmmineraaaa)
+  //  Add 16 to this "highest" name (this will make it something like evmmineraaab)
+  if ( miner_found == false ) {
+
+    // First create the EVM address, if needed
+    evm_table_t _evmaccounts( name("eosio.evm"), name("eosio.evm").value );
+    auto acct_index = _evmaccounts.get_index<"byaddress"_n>();
+  
+    checksum256 address = eosio_evm::pad160(evm_address);
+    auto evm_itr = acct_index.find( address );
+
+    // If EVM never been created, call openwallet function to add it
+    if ( evm_itr == acct_index.cend() ) {
+      action(
+        permission_level{ get_self(), "active"_n },
+        "eosio.evm"_n , "openwallet"_n,
+        std::make_tuple( get_self(), evm_address)
+      ).send();
+    }
+
+    // Theory is that this returns the highest name "below" evmminer5555
+    name miner_name = "evmminer5555"_n;
+    auto miner_itr = _miners.lower_bound( miner_name.value );
+    while ( miner_name.value < "evmminerzzzz"_n.value ) {
+      miner_itr++;
+      miner_name = miner_itr->miner;
+    }
+
+    miner_itr--;
+    name last_miner_name = miner_itr->miner;
+    name new_miner_name = name( last_miner_name.value + 16 );
+
+    _miners.emplace(get_self(), [&](auto& minerobj) {
+      // Set devname's miner to be slightly different from the last
+      minerobj.miner = new_miner_name;
+      //minerobj.miner = name( "evmmineraaac"_n.value + 16 );
+      minerobj.token_contract = "eosio.token"_n;
+      minerobj.evm_address = evm_address_str;
+      minerobj.multiplier = 1.0;
+      minerobj.evm_send_enabled = true;
+      minerobj.balance = 0.0;
+    });
+
+    // Bring miner's name to the rewards table
+    auto rewards_itr = _rewards.find( devname.value );
+    _rewards.modify(rewards_itr, get_self(), [&](auto& reward) {
+        reward.miner = new_miner_name;
+    });
+
+  }
+
+}
+
 ACTION ascensionwx::addminer( name devname,
                                name miner ) {
 
@@ -144,7 +247,8 @@ ACTION ascensionwx::addminer( name devname,
   require_auth(get_self());
 
   // First check that device and miner accounts exist
-  check( is_account(miner) , "Account doesn't exist.");
+  //if ( miner != devname )
+  //  check( is_account(miner) , "Account doesn't exist.");
 
   // Add the miner to the sensors table
   rewards_table_t _rewards(get_self(), get_first_receiver().value);
@@ -165,27 +269,30 @@ ACTION ascensionwx::addminer( name devname,
     _miners.emplace(get_self(), [&](auto& minerobj) {
       minerobj.miner = miner;
       minerobj.token_contract = "eosio.token"_n;
-      minerobj.evm_address = evmLookup( miner );
+      minerobj.evm_address = "";
       minerobj.multiplier = 1.0;
       minerobj.evm_send_enabled = false;
       minerobj.balance = 0.0;
     });
   }
 
-  // To confirm the miner can receive tokens, we send a small amount of Telos to the account
-  uint8_t precision = 4;
-  string memo = "Miner account enabled!";
-  uint32_t amt_number = (uint32_t)(pow( 10, precision ) * 
+  if ( miner != devname && is_account( miner ) ) {
+
+    // To confirm the miner can receive tokens, we send a small amount of Telos to the account
+    uint8_t precision = 4;
+    string memo = "Miner account enabled!";
+    uint32_t amt_number = (uint32_t)(pow( 10, precision ) * 
                                         0.0001);
-  eosio::asset reward = eosio::asset( 
-                          amt_number,
-                          symbol(symbol_code( "TLOS" ), precision));
+    eosio::asset reward = eosio::asset( 
+                            amt_number,
+                            symbol(symbol_code( "TLOS" ), precision));
   
-  action(
-      permission_level{ get_self(), "active"_n },
-      "eosio.token"_n , "transfer"_n,
-      std::make_tuple( get_self(), miner, reward, memo )
-  ).send();
+    action(
+        permission_level{ get_self(), "active"_n },
+        "eosio.token"_n , "transfer"_n,
+        std::make_tuple( get_self(), miner, reward, memo )
+    ).send();
+  }
                                
 }
 
@@ -202,11 +309,13 @@ ACTION ascensionwx::addbuilder( name devname,
   require_auth(get_self());
 
   // First check that device and miner accounts exist
-  check( is_account(builder) , "Account doesn't exist.");
+  //check( is_account(builder) , "Account doesn't exist.");
 
   // Add the miner to the sensors table
   rewards_table_t _rewards(get_self(), get_first_receiver().value);
   auto rewards_itr = _rewards.find( devname.value );
+
+  // Todo: If sensor has not been added yet, add the sensor
 
   _rewards.modify(rewards_itr, get_self(), [&](auto& reward) {
       reward.builder = builder;
@@ -221,9 +330,10 @@ ACTION ascensionwx::addbuilder( name devname,
     _builders.emplace(get_self(), [&](auto& builderobj) {
       builderobj.builder = builder;
       builderobj.token_contract = "eosio.token"_n;
-      builderobj.evm_address = evmLookup( builder );
+      builderobj.evm_address = "";
       builderobj.multiplier = 1.0;
       builderobj.evm_send_enabled = false;
+      builderobj.number_devices = 0;
       builderobj.balance = 0.0;
       builderobj.enclosure_type = enclosure_type;
     });
@@ -233,6 +343,7 @@ ACTION ascensionwx::addbuilder( name devname,
   auto parameters_itr = _parameters.begin();
 
   // To confirm the miner can receive tokens, we send a small amount of Telos to the account
+  /*
   uint8_t precision = 4;
   string memo = "Builder account enabled!";
   uint32_t amt_number = (uint32_t)(pow( 10, precision ) * 
@@ -246,6 +357,7 @@ ACTION ascensionwx::addbuilder( name devname,
       "eosio.token"_n , "transfer"_n,
       std::make_tuple( get_self(), builder, reward, memo )
   ).send();
+  */
                                
 }
 
@@ -265,6 +377,14 @@ ACTION ascensionwx::submitdata(name devname,
     }
   } else
     require_auth( get_self() );
+
+  // Check for phyiscal damage
+  uint8_t flags = device_flags;
+  if (  pressure_hpa < 700 || pressure_hpa > 1100 ||
+        temperature_c < -55 || temperature_c > 55 ||
+        humidity_percent < 0 || humidity_percent > 100 )
+    flags = device_flags + 128;
+
 
   // Find the sensor in the sensors table
   sensors_table_t _sensors(get_self(), get_first_receiver().value);
@@ -289,21 +409,22 @@ ACTION ascensionwx::submitdata(name devname,
       wthr.pressure_hpa = pressure_hpa;
       wthr.temperature_c = temperature_c;
       wthr.humidity_percent = humidity_percent;
+      wthr.dew_point = calcDewPoint( temperature_c, humidity_percent );
   });
+
+  // Get device's reported lat/lon
+  float lat1 = this_weather_itr->latitude_deg;
+  float lon1 = this_weather_itr->longitude_deg;
 
   // If indoors or flagged as damaged, give very low quality score
   uint8_t quality_score;
-  if ( if_physical_damage( device_flags ) || if_indoor_flagged( device_flags ) ||
+  if ( if_physical_damage( flags ) || if_indoor_flagged( flags, temperature_c ) || 
         sensor_itr->permanently_damaged || !rewards_itr->picture_sent )
     {
       quality_score=1;
     }
   // otherwise, we determine quality based on average temperatures around the sensor
   else {
-  
-      // Get device's reported lat/lon
-      float lat1 = this_weather_itr->latitude_deg;
-      float lon1 = this_weather_itr->longitude_deg;
 
       /*
         We will create a lat/lon "bounding box" around the sensor in question,
@@ -349,7 +470,8 @@ ACTION ascensionwx::submitdata(name devname,
             continue;
 
           // If this nearby sensor is not damaged, use it in calculating average
-          if( !if_physical_damage( itr->flags ) && !if_indoor_flagged( itr->flags ) ) {
+          if( !if_physical_damage( itr->flags ) && 
+              !if_indoor_flagged( itr->flags, itr->temperature_c ) ) {
             // Useful iterative algorithm for calculating average when we don't know how many 
             // .  samples beforehand
             avg_temperature = (avg_temperature*num_nearby_good_stations + itr->temperature_c) / 
@@ -368,10 +490,14 @@ ACTION ascensionwx::submitdata(name devname,
 
   }  // end check for damaged/indoor flags
 
+  _weather.modify(this_weather_itr, get_self(), [&](auto& wthr) {
+    wthr.flags = flags;
+  });
+
+  /* *** More in-depth flags calculation
   //flags = calculateFlags( deviation, device_flags );
 
   // Update flags variable
-  /*
   _weather.modify(this_weather_itr, get_self(), [&](auto& wthr) {
       wthr.flags = device_flags 
                     + ( (unix_time_s > sensor_itr->time_created + 30*3600*24) ? 0 : 1 )
@@ -390,7 +516,7 @@ ACTION ascensionwx::submitdata(name devname,
   
   // Goes into the Miner table and updates the balances accordingly
 
-  if ( is_account(miner) ) {
+  if ( name{miner}.to_string() != "" ) {
     updateMinerBalance( miner, quality_score, rewards_itr->multiplier );
 
     // If new period has begun, then do Miner payout
@@ -407,28 +533,24 @@ ACTION ascensionwx::submitdata(name devname,
       }
 
       // Uses Inline action to pay out miner
-      payoutMiner( miner, rewards_itr->recommend_memo);
+      if ( rewards_itr->recommend_memo != "" )
+        payoutMiner( miner, rewards_itr->recommend_memo);
+      else 
+        payoutMiner( miner, "Miner payout" );
+
     }
   } // end if miner check
 
   // Handle Builder updates
-  if ( is_account(builder) )
+  if ( name{builder}.to_string() != "" )
   {
-    // Goes into the Builder table and updates the balances accordingly
-    if ( sensor_itr->active_this_period == false )
-      updateBuilderBalance( builder );
-
     // If new period has begun, then do Builder payout
     if ( rewards_itr->last_builder_payout < parameters_itr->period_start_time ) {
-
-      // Simple counter so we know how many of this builder's devices transmitted today.
-      int dev_counter = 0;
 
       // Loop over the entire device reward table
       for ( auto itr = _rewards.begin(); itr != _rewards.end(); itr++ ) {
         // If builder matches current builder, then update last_miner_payout to current time.
         if ( itr->builder == builder ) {
-          dev_counter++;
           _rewards.modify( itr, get_self(), [&](auto& reward) {
             reward.last_builder_payout = unix_time_s;
           });
@@ -436,16 +558,26 @@ ACTION ascensionwx::submitdata(name devname,
       } // end loop over all rewards
 
       // Use Inline action to pay out builder
-      string memo = "Builder payout: " + to_string(dev_counter) + " devices reported data today.";
-      payoutBuilder( builder,  memo);
+      payoutBuilder( builder );
+
     } // end last_builder_payout check
   } // end builder account check
 
-  // Update sensor activity flag if set to false
-  if ( sensor_itr->active_this_period == false )
+  // Do this first time after period
+  if ( sensor_itr->active_this_period == false ) {
+
+    // Increase builder balance by $0.25
+    if ( is_account(builder) )
+      updateBuilderBalance( builder, rewards_itr->multiplier );
+
+    // Set this sensor to active
     _sensors.modify(sensor_itr, get_self(), [&](auto& sensor) {
       sensor.active_this_period = true;
     });
+  }
+
+  // Handle input into climate contracts
+  handleClimateContracts(devname, lat1, lon1);
 
   // Final check is to see if we need to update the period
   if ( unix_time_s > parameters_itr->period_end_time ) {
@@ -487,8 +619,31 @@ ACTION ascensionwx::submitgps( name devname,
   weather_table_t _weather(get_self(), get_first_receiver().value);
   auto weather_itr = _weather.find( devname.value );
 
+  rewards_table_t _rewards( get_self(), get_first_receiver().value );
+  auto rewards_itr = _rewards.find(devname.value);
+
   // If all fields are blank, exit the function
   if ( latitude_deg == 0 && longitude_deg == 0 && lat_deg_geo == 0 && lon_deg_geo == 0 ) return;
+
+  // First check if this was the first position message after ship
+
+  if ( weather_itr->loc_accuracy.substr(0,3) == "Low" )
+  {
+      float distance = calcDistance( lat_deg_geo, 
+                                    lon_deg_geo, 
+                                    weather_itr->latitude_deg, 
+                                    weather_itr->longitude_deg );
+      if ( distance < 30.0 ) {
+        _sensors.modify(sensor_itr, get_self(), [&](auto& sensor) {
+          sensor.in_transit = false;
+        });
+        _weather.modify(weather_itr, get_self(), [&](auto& wthr) {
+          wthr.latitude_deg = lat_deg_geo;
+          wthr.longitude_deg = lon_deg_geo;
+          wthr.loc_accuracy = "Medium (Geolocation only)";
+        });
+      }
+  }
 
   if ( latitude_deg != 0 && longitude_deg != 0 && lat_deg_geo == 0 && lon_deg_geo == 0 )
   {
@@ -524,6 +679,7 @@ ACTION ascensionwx::submitgps( name devname,
   // Finally, if all 4 fields are filled out, we give high confidence
   if ( latitude_deg != 0 && latitude_deg != 0 && lat_deg_geo != 0 && lon_deg_geo != 0 )
   {
+
       float distance = calcDistance( latitude_deg, 
                                     longitude_deg, 
                                     lat_deg_geo, 
@@ -545,6 +701,13 @@ ACTION ascensionwx::submitgps( name devname,
 
   }
 
+  // If other sensors are in exact same location, reduce their multiplier to 
+  if ( latitude_deg == 0 && longitude_deg == 0 )
+    handleIfSensorAlreadyHere( devname, lat_deg_geo, lon_deg_geo );
+  else
+    handleIfSensorAlreadyHere( devname, latitude_deg, longitude_deg );
+
+  // Update sensor in table
   _sensors.modify(sensor_itr, get_self(), [&](auto& sensor) {
       sensor.last_gps_lock = unix_time_s;
       //sensor.next_sunrise_time = calc_next_sunrise();
@@ -567,13 +730,13 @@ ACTION ascensionwx::setpicture( name devname,
 
 }
 
-ACTION ascensionwx::setmultiply( name devname_or_acct, 
+ACTION ascensionwx::setmultiply( name devname_or_miner, 
                                 float multiplier ) {
 
   require_auth(get_self());
 
   rewards_table_t _rewards( get_self(), get_first_receiver().value );
-  auto rewards_itr = _rewards.find( devname_or_acct.value );
+  auto rewards_itr = _rewards.find( devname_or_miner.value );
   if( rewards_itr != _rewards.cend() ) {
     _rewards.modify( rewards_itr, get_self(), [&](auto& reward) {
         reward.multiplier = multiplier;
@@ -582,18 +745,76 @@ ACTION ascensionwx::setmultiply( name devname_or_acct,
   }
 
   miners_table_t _miners(get_self(), get_first_receiver().value);
-  auto miners_itr = _miners.find( devname_or_acct.value );
+  auto miners_itr = _miners.find( devname_or_miner.value );
   if( miners_itr != _miners.cend() )
     _miners.modify( miners_itr, get_self(), [&](auto& miner) {
         miner.multiplier = multiplier;
     });
 
+}
+
+ACTION ascensionwx::setbuildmult( name builder,
+                                  float multiplier ) {
+
+  require_auth(get_self());
+
   builders_table_t _builders(get_self(), get_first_receiver().value);
-  auto builders_itr = _builders.find( devname_or_acct.value );
+  auto builders_itr = _builders.find( builder.value );
   if( builders_itr != _builders.cend() )
-    _builders.modify( builders_itr, get_self(), [&](auto& builder) {
-        builder.multiplier = multiplier;
+    _builders.modify( builders_itr, get_self(), [&](auto& buildr) {
+        buildr.multiplier = multiplier;
     });
+
+}
+
+
+ACTION ascensionwx::setevmaddr( name miner_or_builder, 
+                                checksum160 evm_address ) {
+
+  // Only self can run this action
+  require_auth( get_self() );
+
+  evm_table_t _evmaccounts( name("eosio.evm"), name("eosio.evm").value );
+  auto acct_index = _evmaccounts.get_index<"byaddress"_n>();
+  
+  //uint256_t address = eosio_evm::checksum160ToAddress(evm_address);
+  checksum256 address = eosio_evm::pad160(evm_address);
+  auto evm_itr = acct_index.find( address );
+
+  // If EVM address is not present in the table, call openwallet function to add it
+  if ( evm_itr == acct_index.cend() ) {
+    action(
+      permission_level{ get_self(), "active"_n },
+      "eosio.evm"_n , "openwallet"_n,
+      std::make_tuple( get_self(), evm_address)
+    ).send();
+  }
+
+  // Convert checksum160 to string by
+  //   converting to hex and chopping off padded bytes
+  std::array<uint8_t, 32u> bytes = eosio_evm::fromChecksum160( evm_address );
+  string evm_address_str = "0x" + eosio_evm::bin2hex(bytes).substr(24);
+
+  // Set the miner's account to hold the EVM address string
+  miners_table_t _miners(get_self(), get_first_receiver().value);
+  auto miners_itr = _miners.find( miner_or_builder.value );
+
+  if ( miners_itr != _miners.cend() )
+    _miners.modify( miners_itr, get_self(), [&](auto& miner) {
+      miner.evm_address = evm_address_str;
+      miner.evm_send_enabled = true;
+    });
+
+  // Do same for builder's account
+  builders_table_t _builders(get_self(), get_first_receiver().value);
+  auto builders_itr = _builders.find( miner_or_builder.value );
+
+  if ( builders_itr != _builders.cend() )
+    _builders.modify( builders_itr, get_self(), [&](auto& builder) {
+      builder.evm_address = evm_address_str;
+      builder.evm_send_enabled = true;
+    });
+  
 
 }
 
@@ -614,6 +835,55 @@ ACTION ascensionwx::chngminerpay( name token_contract,
     token.miner_amt_per_good_obs = miner_amt_per_good_obs;
     token.miner_amt_per_poor_obs = miner_amt_per_poor_obs;
   });
+
+}
+
+ACTION ascensionwx::manualpayall( int num_hours, string memo ) {
+  
+  // Pay all miners max pay for x number of hours. Spawns a large number of inline actions,
+  //  but eosio.token transfers are very lightweight
+  //  Note: Useful for if server goes offline for a short time
+
+  require_auth(get_self());
+
+  miners_table_t _miners(get_self(), get_first_receiver().value);
+  tokens_table_t _tokens(get_self(), get_first_receiver().value);
+
+  auto tokens_itr = _tokens.find( "eosio.token"_n.value );
+
+  for ( auto miners_itr=_miners.begin(); miners_itr != _miners.end() ; miners_itr ++ ) {
+
+      // Calculate number of tokens based on 15-minute observation interval (4 per hour)
+      float token_amount = tokens_itr->miner_amt_per_great_obs * 4 * num_hours * miners_itr->multiplier;
+
+      uint32_t amt_number = (uint32_t)(pow( 10, tokens_itr->precision ) * 
+                                        token_amount);
+
+      eosio::asset reward = eosio::asset( 
+                            amt_number,
+                            symbol(symbol_code( tokens_itr->symbol_letters ), tokens_itr->precision));
+
+      if( miners_itr->evm_send_enabled )
+      {
+        // Have to override preferred memo field for evm transfer
+        string memo_evm = miners_itr->evm_address;
+
+        action(
+          permission_level{ get_self(), "active"_n },
+          "eosio.token"_n , "transfer"_n,
+          std::make_tuple( get_self(), "eosio.evm"_n, reward, memo_evm )
+        ).send();
+
+      } else {
+        action(
+          permission_level{ get_self(), "active"_n },
+          tokens_itr->token_contract , "transfer"_n,
+          std::make_tuple( get_self(), miners_itr->miner, reward, memo)
+        ).send();
+      }
+
+  } // end for loop
+  
 
 }
 
@@ -660,6 +930,23 @@ ACTION ascensionwx::addflag( uint64_t bit_value,
     });
   }
 
+}
+
+ACTION ascensionwx::rewardfactor(float factor)
+{
+  // Mutliply all miner reward multipliers by consistent factor
+  // (Used if want to keep old rewards similar, while decreasing new reward amounts)
+
+  require_auth( get_self() );
+
+  miners_table_t _miners(get_self(), get_first_receiver().value);
+
+  for ( auto miner_itr=_miners.begin(); miner_itr != _miners.end() ; miner_itr ++ ) {
+      _miners.modify( miner_itr, get_self(), [&](auto& miner) {
+          miner.multiplier = miner_itr->multiplier * factor;
+      });
+  } // end for loop
+  
 }
 
 ACTION ascensionwx::removesensor(name devname)
@@ -716,8 +1003,48 @@ ACTION ascensionwx::removeobs(name devname)
   _weather.erase( itr );
 }
 
+ACTION ascensionwx::removeminer(name miner)
+{
+
+  // Note: Removes either a Miner or Builder from its table
+  
+  // Require auth from self
+  require_auth( get_self() );
+
+  rewards_table_t _rewards(get_self(), get_first_receiver().value);
+
+  // First, find all sensors with this miner name and set miner to empty
+  for ( auto itr = _rewards.begin(); itr != _rewards.end(); itr++ ) {
+
+    // If Miner or Builder are set in table, set to empty string
+    if ( itr->miner == miner )
+      _rewards.modify( itr, get_self(), [&](auto& reward) {
+        reward.miner = name("");
+      });
+    if ( itr->builder == miner )
+      _rewards.modify( itr, get_self(), [&](auto& reward) {
+        reward.builder = name("");
+      });
+  }
+
+  // Remove miner/builder from table
+  miners_table_t _miners(get_self(), get_first_receiver().value);
+  auto miners_itr = _miners.find( miner.value );
+  if ( miners_itr != _miners.cend() )
+    _miners.erase( miners_itr ); // remove the miner from Miner table
+
+  builders_table_t _builders(get_self(), get_first_receiver().value);
+  auto builders_itr = _builders.find( miner.value );
+  if ( builders_itr != _builders.cend() )
+    _builders.erase( builders_itr ); // remove the builder from Builder table
+
+}
+
 
 void ascensionwx::updateMinerBalance( name miner, uint8_t quality_score, float rewards_multiplier ) {
+
+  // If messages are broadcast every 15 minutes, this function will be called about
+  //   100 times per day
 
   tokens_table_t _tokens(get_self(), get_first_receiver().value);
   auto tokens_itr = _tokens.find( "eosio.token"_n.value );
@@ -725,7 +1052,6 @@ void ascensionwx::updateMinerBalance( name miner, uint8_t quality_score, float r
   miners_table_t _miners(get_self(), get_first_receiver().value);
   auto miners_itr = _miners.find( miner.value );
 
-  float usd_price = tokens_itr->current_usd_price;
   float usd_amt;
 
   if ( quality_score == 3 )
@@ -737,30 +1063,30 @@ void ascensionwx::updateMinerBalance( name miner, uint8_t quality_score, float r
   else
     usd_amt = 0;
 
-  // If messages are broadcast every 15 minutes, this comes to $0.25 to $1.00 per day
-  float token_amount = ( usd_amt * miners_itr->multiplier * rewards_multiplier) / usd_price;
+  // Account for multipliers
+  usd_amt = usd_amt * miners_itr->multiplier * rewards_multiplier;
 
   _miners.modify( miners_itr, get_self(), [&](auto& miner) {
-    miner.balance = miners_itr->balance + token_amount;
+    miner.balance = miners_itr->balance + usd_amt;
   });
   
 }
 
-void ascensionwx::updateBuilderBalance( name builder ) {
-
-  tokens_table_t _tokens(get_self(), get_first_receiver().value);
-  auto tokens_itr = _tokens.find( "eosio.token"_n.value );
+void ascensionwx::updateBuilderBalance( name builder, float rewards_multiplier) {
 
   builders_table_t _builders(get_self(), get_first_receiver().value);
   auto builders_itr = _builders.find( builder.value );
 
-  float usd_price = tokens_itr->current_usd_price;
   float usd_amt = 0.25; // Update $0.25 per sensor
-  float token_amount = ( usd_amt * builders_itr->multiplier ) / usd_price;
 
-  _builders.modify( builders_itr, get_self(), [&](auto& builder) {
-    builder.balance = builders_itr->balance + token_amount;
-  });
+  if ( rewards_multiplier != 0 ) {
+    float token_amount = usd_amt * builders_itr->multiplier;
+
+    _builders.modify( builders_itr, get_self(), [&](auto& builder) {
+      builder.balance = builders_itr->balance + token_amount;
+      builder.number_devices = builders_itr->number_devices + 1;
+    });
+  }
 
 }
 
@@ -773,7 +1099,8 @@ void ascensionwx::payoutMiner( name miner, string memo ) {
   miners_table_t _miners(get_self(), get_first_receiver().value);
   auto miners_itr = _miners.find( miner.value );
 
-  float token_amount  = miners_itr->balance;
+  float usd_price = tokens_itr->current_usd_price;
+  float token_amount  = miners_itr->balance / usd_price;
 
   // Check for null balance
   if ( token_amount == 0 )
@@ -789,7 +1116,7 @@ void ascensionwx::payoutMiner( name miner, string memo ) {
   if( miners_itr->evm_send_enabled )
   {
 
-    // Convert to hex and chop off padded bytes
+    // Override the memo
     string memo = miners_itr->evm_address;
 
     action(
@@ -818,7 +1145,7 @@ void ascensionwx::payoutMiner( name miner, string memo ) {
 
 }
 
-void ascensionwx::payoutBuilder( name builder, string memo ) {
+void ascensionwx::payoutBuilder( name builder ) {
 
   tokens_table_t _tokens(get_self(), get_first_receiver().value);
   auto tokens_itr = _tokens.find( "eosio.token"_n.value );
@@ -826,7 +1153,10 @@ void ascensionwx::payoutBuilder( name builder, string memo ) {
   builders_table_t _builders(get_self(), get_first_receiver().value);
   auto builders_itr = _builders.find( builder.value );
 
-  float token_amount  = builders_itr->balance;
+  float usd_price = tokens_itr->current_usd_price;
+
+  float token_amount  = builders_itr->balance / usd_price;
+  uint16_t num_devices = builders_itr->number_devices;
 
   // Check for null balance
   if ( token_amount == 0 )
@@ -853,6 +1183,9 @@ void ascensionwx::payoutBuilder( name builder, string memo ) {
 
   } else {
 
+    // Put number of devices in payout string
+    string memo = "Builder payout: " + to_string(num_devices) + " devices reported data today.";
+
     // Do token transfer using an inline function
     //   This works even with "iot" or another account's key being passed, because even though we're not passing
     //   the traditional "active" key, the "active" condition is still met with @eosio.code
@@ -867,6 +1200,7 @@ void ascensionwx::payoutBuilder( name builder, string memo ) {
   // Set Builder's new balance to 0
   _builders.modify( builders_itr, get_self(), [&](auto& builder) {
     builder.balance = 0;
+    builder.number_devices = 0;
   });
 
 
@@ -901,27 +1235,53 @@ float ascensionwx::degToRadians( float degrees )
     return (degrees * M_PI) / 180.0;
 }
 
-bool ascensionwx::check_bit( uint8_t device_flags, uint8_t target_flag ) {
+float ascensionwx::calcDewPoint( float temperature_c, float humidity ) {
+  
+  const float c1 = 243.04;
+  const float c2 = 17.625;
+  float h = humidity / 100;
+  if (h <= 0.01)
+    h = 0.01;
+  else if (h > 1.0)
+    h = 1.0;
+
+  const float lnh = log(h); // natural logarithm
+  const float tpc1 = temperature_c + c1;
+  const float txc2 = temperature_c * c2;
+  
+  float txc2_tpc1 = txc2 / tpc1;
+
+  float tdew = c1 * (lnh + txc2_tpc1) / (c2 - lnh - txc2_tpc1);
+
+  return tdew;
+}
+
+bool ascensionwx::check_bit( uint8_t flags, uint8_t target_flag ) {
 
   for( int i=128; i>0; i=i/2 ) {
 
-    bool flag_enabled = ( device_flags - i >= 0 );
+    bool flag_enabled = ( flags - i >= 0 );
     if( i==target_flag ) 
       return flag_enabled;
     if( flag_enabled )
-      device_flags -= i;
+      flags -= i;
 
   }
 
   return false; // If target flag never reached return false
 }
 
-bool ascensionwx::if_physical_damage( uint8_t device_flags ) {
-  return check_bit(device_flags,128); // Flag representing phyiscal damage
+bool ascensionwx::if_physical_damage( uint8_t flags ) {
+  return check_bit(flags,128); // Flag representing phyiscal damage
 }
 
-bool ascensionwx::if_indoor_flagged( uint8_t device_flags ) {
-  return check_bit(device_flags,16); // Flag for very low temperature variance
+bool ascensionwx::if_indoor_flagged( uint8_t flags, float temperature_c ) {
+  
+  // If temperature is between 66 and 78 farenheight, check sensor variance flag
+  if ( temperature_c > 18.9 && temperature_c < 25.5 ) 
+    return check_bit(flags,16); // Flag for very low temperature variance
+  else
+    return false;
 }
 
 string ascensionwx::evmLookup( name account )
@@ -938,19 +1298,75 @@ string ascensionwx::evmLookup( name account )
     return "0x" + eosio_evm::bin2hex(bytes).substr(24);
 }
 
+void ascensionwx::handleClimateContracts(name devname, float latitude, float longitude)
+{
+
+}
+
+void ascensionwx::handleIfSensorAlreadyHere( name devname,
+                                            float latitude_deg, 
+                                            float longitude_deg )
+{
+  // Set reward for this sensor to 0 if there is one in same exact location
+  weather_table_t _weather(get_self(), get_first_receiver().value );
+  auto lon_index = _weather.get_index<"longitude"_n>();
+  auto lon_itr = lon_index.lower_bound( longitude_deg );
+
+  rewards_table_t _rewards( get_self(), get_first_receiver().value );
+
+  bool another_sensor_here = false;
+  uint64_t now = current_time_point().sec_since_epoch();
+
+  for ( auto itr = lon_itr ; itr->longitude_deg == longitude_deg && itr != lon_index.end() ; itr++ )
+  {
+    if ( itr->latitude_deg == latitude_deg )
+    {
+      // Change all other sensors in exact same location to have multiplier = 0
+      float mult;
+      if ( itr->devname != devname ) {
+        mult = 0;
+        another_sensor_here = true;
+      } else
+        mult = 1;
+
+      auto rewards_itr = _rewards.find( itr->devname.value );
+      _rewards.modify(rewards_itr, get_self(), [&](auto& reward) {
+        reward.multiplier = mult;
+      });
+
+    } // End same exact latitude check
+  } // End same exact longitude check
+
+  // Finally, if no sensors in same location, but multiplier
+  //    was set to 0 in the past, then set multiplier to 1
+  auto this_rewards_itr = _rewards.find( devname.value );
+  if ( another_sensor_here == false && this_rewards_itr->multiplier == 0 )
+      _rewards.modify(this_rewards_itr, get_self(), [&](auto& reward) {
+        reward.multiplier = 1.0;
+      });
+
+}
+
+
 // Dispatch the actions to the blockchain
 EOSIO_DISPATCH(ascensionwx, (updatefirm)\
                             (newperiod)\
                             (addsensor)\
                             (addminer)\
+                            (addevmminer)\
                             (addbuilder)\
                             (submitdata)\
                             (submitgps)\
                             (setpicture)\
                             (setmultiply)\
+                            (setbuildmult)\
+                            (setevmaddr)\
                             (chngminerpay)\
+                            (manualpayall)\
                             (addtoken)\
                             (addflag)\
+                            (rewardfactor)\
                             (removesensor)\
                             (removeobs)\
+                            (removeminer)\
                             (removereward))
