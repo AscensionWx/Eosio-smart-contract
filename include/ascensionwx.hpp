@@ -14,10 +14,15 @@ CONTRACT ascensionwx : public contract {
     
     ACTION newperiod( uint64_t period_start_time ); // also updates tlos_usd rate
 
-    ACTION addsensor( name devname );
+    ACTION addsensor( name devname,
+                      float latitude_city,
+                      float longitude_city );
 
     ACTION addminer( name devname,
                      name miner); // also looks up if in EVM
+
+    ACTION addevmminer( name devname, 
+                        checksum160 evm_address );
 
     ACTION addbuilder( name devname,
                        name builder,
@@ -38,13 +43,21 @@ CONTRACT ascensionwx : public contract {
 
     ACTION setpicture( name devname, bool ifpicture );
 
-    ACTION setmultiply( name devname_or_acct, 
+    ACTION setmultiply( name devname_or_miner, 
                         float multiplier );
+
+    ACTION setbuildmult( name builder,
+                         float multiplier );
+
+    ACTION setevmaddr( name miner_or_builder,
+                       checksum160 evm_address );
 
     ACTION chngminerpay(  name token_contract,
                           float miner_amt_per_great_obs,
                           float miner_amt_per_good_obs,
                           float miner_amt_per_poor_obs );
+    
+    ACTION manualpayall( int num_hours, string memo );
 
     ACTION addtoken( name token_contract,
                       string symbol_letters,
@@ -55,9 +68,11 @@ CONTRACT ascensionwx : public contract {
                     string processing_step,
                     string issue,
                     string explanation );
+    
+    ACTION rewardfactor( float factor );
 
     ACTION removesensor( name devname ); // deletes from reward and weather table too
-    //ACTION removeminer(name devname);
+    ACTION removeminer(name miner);
     ACTION removereward(name devname);
     ACTION removeobs(name devname);
     //ACTION removetoken( name token_contract );
@@ -68,19 +83,22 @@ CONTRACT ascensionwx : public contract {
     void sendReward( name miner, name devname );
 
     void updateMinerBalance( name miner, uint8_t quality_score, float rewards_multiplier );
-    void updateBuilderBalance( name builder );
+    void updateBuilderBalance( name builder, float rewards_multiplier );
     void payoutMiner( name miner, string memo );
-    void payoutBuilder( name builder, string memo );
+    void payoutBuilder( name builder );
 
     string evmLookup( name miner );
+    void handleIfSensorAlreadyHere( name devname, float lat, float lon );
 
     float calcDistance( float lat1, float lon1, float lat2, float lon2 ); // Calculate distance between two points
     float degToRadians( float degrees );
+    float calcDewPoint( float temperature, float humidity );
 
     bool check_bit( uint8_t device_flags, uint8_t target_flag );
-    bool if_indoor_flagged( uint8_t device_flags );
-    bool if_physical_damage( uint8_t device_flags );
+    bool if_indoor_flagged( uint8_t flags, float temperature_c );
+    bool if_physical_damage( uint8_t flags );
 
+    void handleClimateContracts(name devname, float latitude_deg, float longitude_deg);
     void set_flags();
     
     /* This function encodes the noaa station id into a unique
@@ -221,6 +239,7 @@ CONTRACT ascensionwx : public contract {
       string evm_address;
       float multiplier;
       bool evm_send_enabled;
+      uint16_t number_devices;
       float balance;
       string enclosure_type;
 
