@@ -59,6 +59,45 @@ ACTION ascensionwx::pushdatafull(name devname,
                                        temperature_c, 
                                        humidity_percent,
                                        flags );
+
+  // Push rain data to tables                                     
+  handleRain( devname, rain_1hr_mm );
+  
+  // Update Miner and Builder balances and send (if necessary)
+  //handleMiner3dp( devname, ifGreatQuality );
+  handleMinerLockIn( devname );
+
+  bool ifFirstData = handleSensors( devname, ifGreatQuality );
+
+  //handleBuilder( devname, ifFirstData );
+  //handleReferral( devname, ifFirstData );
+
+  // Handle input into climate contracts
+  //handleClimateContracts(devname, lat1, lon1);
+
+  handleIfNewPeriod( now );
+    
+}
+
+ACTION ascensionwx::pushdatatrh(name devname,
+                                float temperature_c, 
+                                float humidity_percent) {
+
+  uint64_t now = current_time_point().sec_since_epoch();
+
+  // Check that permissions are met
+  if( is_account( devname ) && has_auth(devname) )
+      require_auth( devname ); // if device didn't sign it, then own contract should have
+  else
+      require_auth( get_self() );
+
+  uint8_t flags = 0;
+  float pressure_hpa = 0;
+  bool ifGreatQuality = handleWeather( devname,
+                                       pressure_hpa,
+                                       temperature_c, 
+                                       humidity_percent,
+                                       flags );
   
 
   // Update Miner and Builder balances and send (if necessary)
@@ -68,7 +107,6 @@ ACTION ascensionwx::pushdatafull(name devname,
   bool ifFirstData = handleSensors( devname, ifGreatQuality );
 
   //handleBuilder( devname, ifFirstData );
-  //handleReferral( devname, ifFirstData );
 
   // Handle input into climate contracts
   //handleClimateContracts(devname, lat1, lon1);
@@ -98,8 +136,6 @@ ACTION ascensionwx::pushdata3dp(name devname,
                                        humidity_percent,
                                        device_flags );
   
-  
-
   // Update Miner and Builder balances and send (if necessary)
   //handleMiner3dp( devname, ifGreatQuality );
   handleMinerLockIn( devname );
@@ -115,6 +151,31 @@ ACTION ascensionwx::pushdata3dp(name devname,
     
 }
 
+ACTION ascensionwx::pushdatapm(name devname,
+                               uint16_t flags,
+                               uint32_t pm1_0_ug_m3, 
+                               uint32_t pm2_5_ug_m3, 
+                               uint32_t pm4_0_ug_m3, 
+                               uint32_t pm10_0_ug_m3, 
+                               uint32_t pm1_0_n_cm3,
+                               uint32_t pm2_5_n_cm3, 
+                               uint32_t pm4_0_n_cm3, 
+                               uint32_t pm10_0_n_cm3,
+                               uint32_t typ_size_nm) {
+
+  uint64_t now = current_time_point().sec_since_epoch();
+
+  // Check that permissions are met
+  if( is_account( devname ) && has_auth(devname) )
+      require_auth( devname ); // if device didn't sign it, then own contract should have
+  else
+      require_auth( get_self() );
+  
+  //handleClimateContracts(devname, lat1, lon1);
+    
+}
+
+
 void ascensionwx::handleRain( name devname, float rain_1hr_mm )
 {
   uint64_t now_s = current_time_point().sec_since_epoch();
@@ -124,41 +185,96 @@ void ascensionwx::handleRain( name devname, float rain_1hr_mm )
 
   // Use devname as scope
   rainraw_table_t _rainraw( get_self(), devname.value);
-  auto rainraw_itr = _rainraw.begin();
+  auto rainraw_itr = _rainraw.begin(); 
 
   // Delete all datapoints older than 24 hours
-  while( rainraw_itr != _rainraw.end() )
+  while( rainraw_itr->unix_time_s < cutoff_24hr )
   {
-    if ( rainraw_itr->unix_time_s < cutoff_24hr )
-      rainraw_itr = _rainraw.erase( rainraw_itr );
-    else
-      break; // no need to increment, just break out of while loop
+    rainraw_itr = _rainraw.erase( rainraw_itr );
   }
 
   // Add new raw rain datapoint
   _rainraw.emplace(get_self(), [&](auto& rain) {
       rain.unix_time_s = now_s;
-      rain.rain_15m_mm = rain_1hr_mm;
+      rain.rain_1hr_mm = rain_1hr_mm;
       rain.flags = 0;
   });
 
   float sum_1hr = 0;
   float sum_6hr = 0;
   float sum_24hr = 0;
+  float sum;
 
   uint8_t n_1hr = 0;
-  uint8_t n_6hr = 0;
-  uint8_t n_24hr = 0;
+  float avg_1hr;
 
-  // Loop over 96-ish datapoints to get 1hr, 6hr, 24hr sums
-  for( auto itr = _rainraw.begin(); itr != _rainraw.end(); itr++ )
+  // Store rainfall totals in cumulative rain table
+  raincumulate_table_t _raincumulate( get_self(), get_first_receiver().value );
+  auto raincumulate_itr = _raincumulate.find( devname.value );
+
+  if ( raincumulate_itr == _raincumulate.cend() ) 
   {
-    if ( itr->unix_time_s < cutoff_24hr ) {
-      sum_24hr += itr->rain_15m_mm;
-      n_24hr++;
-    }
-    
+    weather_table_t _weather(get_self(), get_first_receiver().value);
+    auto weather_itr = _weather.find( devname.value );
+
+    _raincumulate.emplace(get_self(), [&](auto& rain) {
+      rain.devname = devname;
+      rain.latitude_deg = weather_itr->latitude_deg;
+      rain.longitude_deg = weather_itr->longitude_deg;
+      rain.flags = 0;
+    });
+
+    raincumulate_itr = _raincumulate.find( devname.value );
+
   }
+
+  // Calculate hourly rain
+  auto itr = _rainraw.lower_bound( cutoff_1hr );
+  while( itr != _rainraw.end() )
+  {
+    // Will get us to the most recent hourly report
+    sum_1hr = itr->rain_1hr_mm;
+    itr++;
+  }
+
+  // Add up 6-hourly rain
+  itr = _rainraw.lower_bound( cutoff_6hr );
+  while( itr != _rainraw.end() )
+  {
+    if ( itr->rain_1hr_mm > 0 ) 
+    {
+      // Add this hourly rate to sum of 6 hours
+      sum_6hr = sum_6hr + itr->rain_1hr_mm;
+      // Skip ahead to 1 hour later. We do this because
+      //     the rain_1hr_mm is an hourly rate and we dont want to
+      // .   add multiple instances
+      itr = _rainraw.lower_bound( itr->unix_time_s + 60*60 );
+    }
+    else
+      itr++;
+  }
+
+  // Add up all rain in last 24 hours
+  itr = _rainraw.lower_bound( cutoff_24hr );
+  while( itr != _rainraw.end() )
+  {
+    if ( itr->rain_1hr_mm > 0 ) 
+    {
+      sum_24hr = sum_24hr + itr->rain_1hr_mm;
+      itr = _rainraw.lower_bound( itr->unix_time_s + 60*60 ); // Skip ahead to 1 hour later
+    }
+    else
+      itr++;
+  }
+
+    // Finally update the hourly rain
+  _raincumulate.modify( raincumulate_itr, get_self(), [&](auto& rain) {
+      rain.unix_time_s = now_s;
+      rain.rain_1hr = sum_1hr;
+      rain.rain_6hr = sum_6hr;
+      rain.rain_24hr = sum_24hr;
+      rain.flags = 0;
+  });
 
 }
 
