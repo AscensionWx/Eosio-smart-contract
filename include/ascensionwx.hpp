@@ -52,12 +52,28 @@ CONTRACT ascensionwx : public contract {
                         uint32_t light_intensity_lux,
                         uint8_t uv_index);
 
+    ACTION pushdatatrh(name devname,
+                       float temperature_c, 
+                       float humidity_percent);
+
     ACTION pushdata3dp(name devname,
                         float pressure_hpa,
                         float temperature_c, 
                         float humidity_percent,
                         uint32_t battery_millivolt,
                         uint8_t device_flags);
+
+    ACTION pushdatapm(name devname,
+                      uint16_t flags,
+                      uint32_t pm1_0_ug_m3, 
+                      uint32_t pm2_5_ug_m3, 
+                      uint32_t pm4_0_ug_m3, 
+                      uint32_t pm10_0_ug_m3, 
+                      uint32_t pm1_0_n_cm3,
+                      uint32_t pm2_5_n_cm3, 
+                      uint32_t pm4_0_n_cm3, 
+                      uint32_t pm10_0_n_cm3,
+                      uint32_t typ_size_nm);
 
     ACTION submitgps( name devname,
                       float latitude_deg,
@@ -270,8 +286,8 @@ CONTRACT ascensionwx : public contract {
       double latitude_deg;
       double longitude_deg;
       uint16_t elevation_gps_m;
+      float rain_1hr;
       float rain_6hr;
-      float rain_12hr;
       float rain_24hr;
       uint8_t flags;
 
@@ -291,7 +307,7 @@ CONTRACT ascensionwx : public contract {
       // Note, this table will use devname/station as the scope
       // Ideally should always have 96 rows present in this table for each of 96 data points
       uint64_t unix_time_s;
-      float rain_15m_mm;
+      float rain_1hr_mm;
       uint8_t flags;
 
       auto primary_key() const { return unix_time_s; }
