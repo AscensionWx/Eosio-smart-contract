@@ -178,6 +178,7 @@ ACTION ascensionwx::pushdatapm(name devname,
 
 void ascensionwx::handleRain( name devname, float rain_1hr_mm )
 {
+
   uint64_t now_s = current_time_point().sec_since_epoch();
   uint64_t cutoff_1hr = now_s - 60*60;
   uint64_t cutoff_6hr = now_s - 60*60*6;
@@ -185,38 +186,36 @@ void ascensionwx::handleRain( name devname, float rain_1hr_mm )
 
   // Use devname as scope
   rainraw_table_t _rainraw( get_self(), devname.value);
-  auto rainraw_itr = _rainraw.begin(); 
 
-  // Delete all datapoints older than 24 hours
-  while( rainraw_itr->unix_time_s < cutoff_24hr )
+  if( rain_1hr_mm > 0 )
   {
-    rainraw_itr = _rainraw.erase( rainraw_itr );
-  }
+    auto rainraw_itr = _rainraw.begin(); 
 
-  // Add new raw rain datapoint
-  _rainraw.emplace(get_self(), [&](auto& rain) {
+    // Delete all datapoints older than 24 hours
+    while( rainraw_itr->unix_time_s < cutoff_24hr )
+    {
+      rainraw_itr = _rainraw.erase( rainraw_itr );
+    }
+
+    // Add new raw rain datapoint. Emplace tends to be CPU intensive
+    _rainraw.emplace(get_self(), [&](auto& rain) {
       rain.unix_time_s = now_s;
       rain.rain_1hr_mm = rain_1hr_mm;
       rain.flags = 0;
-  });
+    });
+  }
 
-  float sum_1hr = 0;
-  float sum_6hr = 0;
-  float sum_24hr = 0;
-  float sum;
-
-  uint8_t n_1hr = 0;
-  float avg_1hr;
-
-  // Store rainfall totals in cumulative rain table
+  /////  Store rainfall totals in cumulative rain table  //////
   raincumulate_table_t _raincumulate( get_self(), get_first_receiver().value );
   auto raincumulate_itr = _raincumulate.find( devname.value );
 
+  // First check if the device is in the table
   if ( raincumulate_itr == _raincumulate.cend() ) 
   {
     weather_table_t _weather(get_self(), get_first_receiver().value);
     auto weather_itr = _weather.find( devname.value );
 
+    // Add the sensor to the data table
     _raincumulate.emplace(get_self(), [&](auto& rain) {
       rain.devname = devname;
       rain.latitude_deg = weather_itr->latitude_deg;
@@ -227,6 +226,11 @@ void ascensionwx::handleRain( name devname, float rain_1hr_mm )
     raincumulate_itr = _raincumulate.find( devname.value );
 
   }
+
+  float sum_1hr = 0;
+  float sum_6hr = 0;
+  float sum_24hr = 0;
+  float sum;
 
   // Calculate hourly rain
   auto itr = _rainraw.lower_bound( cutoff_1hr );
@@ -241,30 +245,20 @@ void ascensionwx::handleRain( name devname, float rain_1hr_mm )
   itr = _rainraw.lower_bound( cutoff_6hr );
   while( itr != _rainraw.end() )
   {
-    if ( itr->rain_1hr_mm > 0 ) 
-    {
-      // Add this hourly rate to sum of 6 hours
-      sum_6hr = sum_6hr + itr->rain_1hr_mm;
-      // Skip ahead to 1 hour later. We do this because
-      //     the rain_1hr_mm is an hourly rate and we dont want to
-      // .   add multiple instances
-      itr = _rainraw.lower_bound( itr->unix_time_s + 60*60 );
-    }
-    else
-      itr++;
+    // Add this hourly rate to sum of 6 hours
+    sum_6hr = sum_6hr + itr->rain_1hr_mm;
+    // Skip ahead to 1 hour later. We do this because
+    //     the rain_1hr_mm is an hourly rate and we dont want to
+    // .   add multiple instances of same rate
+    itr = _rainraw.lower_bound( itr->unix_time_s + 60*60 );
   }
 
   // Add up all rain in last 24 hours
   itr = _rainraw.lower_bound( cutoff_24hr );
   while( itr != _rainraw.end() )
   {
-    if ( itr->rain_1hr_mm > 0 ) 
-    {
-      sum_24hr = sum_24hr + itr->rain_1hr_mm;
-      itr = _rainraw.lower_bound( itr->unix_time_s + 60*60 ); // Skip ahead to 1 hour later
-    }
-    else
-      itr++;
+    sum_24hr = sum_24hr + itr->rain_1hr_mm;
+    itr = _rainraw.lower_bound( itr->unix_time_s + 60*60 );
   }
 
     // Finally update the hourly rain
