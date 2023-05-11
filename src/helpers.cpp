@@ -51,62 +51,6 @@ void ascensionwx::updateRoyaltyBalance( name person, string type ) {
 
 }
 
-
-void ascensionwx::payoutMiner3dp( name miner, string memo ) {
-
-  tokensv2_table_t _tokens(get_self(), get_first_receiver().value);
-  auto tokens_itr = _tokens.find( "eosio.token"_n.value );
-
-  minersv2_table_t _miners(get_self(), get_first_receiver().value);
-  auto miners_itr = _miners.find( miner.value );
-
-  float usd_price = tokens_itr->current_usd_price;
-  float token_amount  = miners_itr->balance / usd_price;
-
-  // Check for null balance
-  if ( token_amount == 0 )
-    return;
-
-  uint32_t amt_number = (uint32_t)(pow( 10, tokens_itr->precision ) * 
-                                        token_amount);
-  
-  eosio::asset reward = eosio::asset( 
-                          amt_number,
-                          symbol(symbol_code( tokens_itr->symbol_letters ), tokens_itr->precision));
-  
-  if( miners_itr->evm_send_enabled )
-  {
-
-    // Override the memo
-    string memo = miners_itr->evm_address_str;
-
-    action(
-      permission_level{ get_self(), "active"_n },
-      "eosio.token"_n , "transfer"_n,
-      std::make_tuple( get_self(), "eosio.evm"_n, reward, memo )
-    ).send();
-
-  } else {
-
-    // Do token transfer using an inline function
-    //   This works even with "iot" or another account's key being passed, because even though we're not passing
-    //   the traditional "active" key, the "active" condition is still met with @eosio.code
-    action(
-      permission_level{ get_self(), "active"_n },
-      tokens_itr->token_contract , "transfer"_n,
-      std::make_tuple( get_self(), miner, reward, memo)
-    ).send();
-
-  }
-
-  // Set Miner's new balance to 0
-  _miners.modify( miners_itr, get_self(), [&](auto& miner) {
-    miner.previous_day_pay_usd = miners_itr->balance;
-    miner.balance = 0;
-  });
-
-}
-
 void ascensionwx::payoutMiner( name miner, string memo, float balance ) {
 
   minersv2_table_t _miners(get_self(), get_first_receiver().value);
