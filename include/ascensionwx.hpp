@@ -134,8 +134,8 @@ CONTRACT ascensionwx : public contract {
 
 
     void payout( string to, float balance, string memo , bool evm_enabled );
+    void payoutEVM( string to, float balance );
     void payoutMiner( name miner, string memo, float balance );
-    void payoutMiner3dp( name miner, string memo );
     void payoutMinerLockIn( name miner, string memo );
     void payoutBuilder( name builder );
 
@@ -153,7 +153,6 @@ CONTRACT ascensionwx : public contract {
     void handleIfNewPeriod( uint64_t now );
     void handleBuilder( name devname, bool ifFirstData );
     void handleReferral( name devname, bool ifFirstData );
-    void handleMiner3dp( name devname, bool ifGreatQuality );
     void handleMinerLockIn( name devname );
     bool handleWeather(name devname,
                        float pressure_hpa,
@@ -202,7 +201,16 @@ CONTRACT ascensionwx : public contract {
       return evm_address160;
 
     }
+/*
+    static checksum256 bytestring_to_checksum256( string byte_str ) {
 
+      std::array<uint8_t, 32u> bytes = eosio_evm::toBin( byte_str );
+      checksum256 output = checksum256(bytes);
+
+      return output;
+
+    }
+*/
     static string evm_checksum160_to_string( checksum160 evm_address ) {
 
       std::array<uint8_t, 32u> bytes = eosio_evm::fromChecksum160( evm_address );
@@ -467,6 +475,7 @@ CONTRACT ascensionwx : public contract {
     > rewardsv2_table_t;
 
     // TODO: separate flags by scope ("weather_n", "rain", etc.)
+    
     TABLE flags {
       uint64_t bit_value;
       string processing_step;
