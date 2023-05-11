@@ -64,7 +64,6 @@ ACTION ascensionwx::pushdatafull(name devname,
   handleRain( devname, rain_1hr_mm );
   
   // Update Miner and Builder balances and send (if necessary)
-  //handleMiner3dp( devname, ifGreatQuality );
   handleMinerLockIn( devname );
 
   bool ifFirstData = handleSensors( devname, ifGreatQuality );
@@ -101,7 +100,6 @@ ACTION ascensionwx::pushdatatrh(name devname,
   
 
   // Update Miner and Builder balances and send (if necessary)
-  //handleMiner3dp( devname, ifGreatQuality );
   handleMinerLockIn( devname );
 
   bool ifFirstData = handleSensors( devname, ifGreatQuality );
@@ -137,7 +135,6 @@ ACTION ascensionwx::pushdata3dp(name devname,
                                        device_flags );
   
   // Update Miner and Builder balances and send (if necessary)
-  //handleMiner3dp( devname, ifGreatQuality );
   handleMinerLockIn( devname );
 
   bool ifFirstData = handleSensors( devname, ifGreatQuality );
@@ -186,18 +183,17 @@ void ascensionwx::handleRain( name devname, float rain_1hr_mm )
 
   // Use devname as scope
   rainraw_table_t _rainraw( get_self(), devname.value);
+  auto rainraw_itr = _rainraw.begin(); 
+
+  // Delete all datapoints older than 24 hours
+  while( rainraw_itr != _rainraw.end() && rainraw_itr->unix_time_s < cutoff_24hr )
+  {
+    rainraw_itr = _rainraw.erase( rainraw_itr );
+  }
 
   if( rain_1hr_mm > 0 )
   {
-    auto rainraw_itr = _rainraw.begin(); 
-
-    // Delete all datapoints older than 24 hours
-    while( rainraw_itr->unix_time_s < cutoff_24hr )
-    {
-      rainraw_itr = _rainraw.erase( rainraw_itr );
-    }
-
-    // Add new raw rain datapoint. Emplace tends to be CPU intensive
+    // Add new raw rain datapoint
     _rainraw.emplace(get_self(), [&](auto& rain) {
       rain.unix_time_s = now_s;
       rain.rain_1hr_mm = rain_1hr_mm;
@@ -250,7 +246,7 @@ void ascensionwx::handleRain( name devname, float rain_1hr_mm )
     // Skip ahead to 1 hour later. We do this because
     //     the rain_1hr_mm is an hourly rate and we dont want to
     // .   add multiple instances of same rate
-    itr = _rainraw.lower_bound( itr->unix_time_s + 60*60 );
+    itr = _rainraw.lower_bound( itr->unix_time_s + 60*58 );
   }
 
   // Add up all rain in last 24 hours
@@ -258,7 +254,7 @@ void ascensionwx::handleRain( name devname, float rain_1hr_mm )
   while( itr != _rainraw.end() )
   {
     sum_24hr = sum_24hr + itr->rain_1hr_mm;
-    itr = _rainraw.lower_bound( itr->unix_time_s + 60*60 );
+    itr = _rainraw.lower_bound( itr->unix_time_s + 60*58 );
   }
 
     // Finally update the hourly rain
@@ -338,58 +334,6 @@ void ascensionwx::handleReferral( name devname,
     } // end loop over all rewards
     payoutBuilder( referrer );
   } // end last_builder_payout check
-}
-
-void ascensionwx::handleMiner3dp( name devname,
-                                   bool ifGreatQuality )
-{
-
-  uint64_t unix_time_s = current_time_point().sec_since_epoch();
-
-  parameters_table_t _parameters(get_self(), get_first_receiver().value);
-  auto parameters_itr = _parameters.begin();
-
-  // Set rewards 
-  rewardsv2_table_t _rewards( get_self(), get_first_receiver().value );
-  auto rewards_itr = _rewards.find( devname.value );
-  name miner = rewards_itr->miner;
-
-  if ( name{miner}.to_string() != "" ) {
-
-    minersv2_table_t _miners(get_self(), get_first_receiver().value);
-    auto miners_itr = _miners.find( miner.value );
-
-    if ( rewards_itr->unique_location ) {
-      //updateMinerBalance( miner, quality_score, rewards_itr->multiplier );
-
-      // We have devname pay for RAM (should be 0), so that we can query get_deltas
-      // .   with this information
-      float quality_increment;
-      if ( ifGreatQuality )
-        quality_increment = rewards_itr->great_quality_rate;
-      else
-        quality_increment = rewards_itr->good_quality_rate;
-
-      _miners.modify( miners_itr, devname, [&](auto& miner) {
-        miner.balance = miners_itr->balance + quality_increment;
-      });
-    }
-  } // end if miner check
-
-  // If new period has begun, then do Miner payout
-  if ( rewards_itr->last_miner_payout < parameters_itr->period_start_time )
-  {
-    // Loop over the entire device reward table
-    for ( auto itr = _rewards.begin(); itr != _rewards.end(); itr++ ) {
-      // If miner matches current miner, then update last_miner_payout to current time.
-      if ( itr->miner == miner )
-        _rewards.modify( itr, get_self(), [&](auto& reward) {
-          reward.last_miner_payout = unix_time_s;
-        });
-    }
-    payoutMiner3dp( miner, "Miner payout" );
-  }
-
 }
 
 void ascensionwx::handleMinerLockIn( name devname )
@@ -525,8 +469,7 @@ bool ascensionwx::handleWeather( name devname,
 
   // Check for unphyiscal values
   uint8_t flags = device_flags;
-  if (  pressure_hpa < 700 || pressure_hpa > 1100 ||
-        temperature_c < -55 || temperature_c > 55 ||
+  if (  temperature_c < -55 || temperature_c > 55 ||
         humidity_percent < 0 || humidity_percent > 100 )
     flags = device_flags + 128;
 
