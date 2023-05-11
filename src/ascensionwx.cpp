@@ -106,14 +106,17 @@ ACTION ascensionwx::manualpayall( int num_hours, string memo ) {
                                         token_amount);
 
       eosio::asset reward = eosio::asset( 
-                            amt_number,
-                            symbol(symbol_code( tokens_itr->symbol_letters ), tokens_itr->precision));
+                        amt_number,
+                        symbol(symbol_code( tokens_itr->symbol_letters ), tokens_itr->precision));
 
       if( evm_enabled )
       {
+
         // Have to override preferred memo field for evm transfer
         string memo_evm = miners_itr->evm_address_str;
 
+        // We'll send via eosio.evm transfer, because we cannot send them via ERC20
+        //   (only 1 ERC20 transfer per eosio transaction due to nonce requirements)
         action(
           permission_level{ get_self(), "active"_n },
           "eosio.token"_n , "transfer"_n,
@@ -184,7 +187,9 @@ EOSIO_DISPATCH(ascensionwx, (updatefirm)\
                             (addbuilder)\
                             (pushdatanoaa)\
                             (pushdatafull)\
+                            (pushdatatrh)\
                             (pushdata3dp)\
+                            (pushdatapm)\
                             (submitgps)\
                             (setpicture)\
                             (setevmaddr)\
