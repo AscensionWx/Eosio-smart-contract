@@ -42,3 +42,20 @@ typedef multi_index<"account"_n,
         indexed_by<name("byaddress"), const_mem_fun<Account, checksum256, &Account::by_address>>,
         indexed_by<name("byaccount"), const_mem_fun<Account, uint64_t, &Account::get_account_value>>
 > evm_table_t;
+
+
+struct [[eosio::table, eosio::contract("eosio.evm")]] Config {
+        uint32_t trx_index;
+        uint32_t last_block;
+
+        // Actual EVM table uses bigint:checksum256 for lines below
+        //   but eosio:checksum256 seems to work fine
+        checksum256 gas_used_block; 
+        checksum256 gas_price;
+
+        uint64_t primary_key() const { return (uint64_t)trx_index; };
+
+        EOSLIB_SERIALIZE(Config, (trx_index)(last_block)(gas_used_block)(gas_price));
+};
+typedef eosio::singleton<"config"_n, Config> evm_config_table_t;
+
