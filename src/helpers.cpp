@@ -181,11 +181,7 @@ void ascensionwx::payout( string to, float balance, string memo , bool evm_enabl
 
   if( evm_enabled )
   {
-    action(
-      permission_level{ get_self(), "active"_n },
-      "eosio.token"_n , "transfer"_n,
-      std::make_tuple( get_self(), "eosio.evm"_n, reward, to )
-    ).send();
+    payoutEVM( to, amt_number );
 
   } else {
 
@@ -200,6 +196,61 @@ void ascensionwx::payout( string to, float balance, string memo , bool evm_enabl
 
   }
   
+}
+
+void ascensionwx::payoutEVM( string receiver, float amt_number )
+{
+  check( receiver.substr(0,2) == "0x" , "AscensionWx payout function not called properly" );
+
+  int chain_id = 40; // Telos EVM Mainnet
+
+  // Eventually we want to store this in the parameters table
+  string own_address_str = "0xcE1247ef3f22a44F6D01777A9A0E0634E28Da254";
+  checksum160 own_address = evm_string_to_checksum160( own_address_str );
+
+  /* 
+  string wtlos = "0xD102cE6A4dB07D247fcc28F366A623Df0938CA9E";
+  std::array<uint8_t, 20u> wtlos_array = eosio_evm::toBin( wtlos.substr(2) );
+  std::vector<uint8_t> wtlos_vector;
+  wtlos_vector.insert( wtlos_vector.end(), wtlos_array.begin(), wtlos_array.end() );
+  */
+
+  // Receiver's account
+  std::array<uint8_t, 20u> receiver_array = eosio_evm::toBin( receiver.substr(2) );
+  std::vector<uint8_t> receiver_vector;
+  receiver_vector.insert( receiver_vector.end(), receiver_array.begin(), receiver_array.end() );
+  
+  // Amount to transfer
+  // EVM number of digits is 14 . We pad with up to 16 zeros in case it is necessary
+  vector<uint8_t> amt_vector = eosio_evm::pad(intx::to_byte_string(amt_number * pow (10, 14)), 16, true);
+
+  // Set gas limit and get gas prices
+  uint256_t gas_limit = 500000;
+  evm_config_table_t _evmconfig( name("eosio.evm"), name("eosio.evm").value );
+  checksum256 entry = _evmconfig.get().gas_price;
+  uint256_t gas_price = eosio_evm::checksum256ToValue( entry );
+
+  // Get nonce of own account
+  checksum160 evm_address160 = evm_string_to_checksum160( own_address_str );
+  evm_table_t _evmaccounts( name("eosio.evm"), name("eosio.evm").value );
+  auto acct_index = _evmaccounts.get_index<"byaddress"_n>();
+  checksum256 address = eosio_evm::pad160(evm_address160);
+  auto evm_itr = acct_index.find( address );
+  uint64_t nonce = evm_itr->nonce;
+
+  // Encodes all the data for our EVM transaction
+  string tx = rlp::encode(nonce, gas_price, gas_limit, 
+                          receiver_vector, 
+                          amt_vector,
+                          0, 0, 0, 0);
+  
+  action(
+    permission_level {get_self(), "active"_n},
+    "eosio.evm"_n,
+    "raw"_n,
+    std::make_tuple(get_self(), tx, false, std::optional<eosio::checksum160>(own_address))
+  ).send();
+
 }
 
 void ascensionwx::handleIfNewPeriod( uint64_t now )
