@@ -1,0 +1,1267 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
+    "version": "eosio::abi/1.2",
+    "types": [],
+    "structs": [
+        {
+            "name": "addbuilder",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "builder",
+                    "type": "name"
+                },
+                {
+                    "name": "enclosure_type",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "addevmminer",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "evm_address_str",
+                    "type": "string"
+                },
+                {
+                    "name": "if_picture",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "addflag",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bit_value",
+                    "type": "uint64"
+                },
+                {
+                    "name": "processing_step",
+                    "type": "string"
+                },
+                {
+                    "name": "issue",
+                    "type": "string"
+                },
+                {
+                    "name": "explanation",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "addminer",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "miner",
+                    "type": "name"
+                },
+                {
+                    "name": "if_picture",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "addnoaa",
+            "base": "",
+            "fields": [
+                {
+                    "name": "station_str",
+                    "type": "string"
+                },
+                {
+                    "name": "latitude_city",
+                    "type": "float32"
+                },
+                {
+                    "name": "longitude_city",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "addsensor",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "station_type",
+                    "type": "name"
+                },
+                {
+                    "name": "latitude_city",
+                    "type": "float32"
+                },
+                {
+                    "name": "longitude_city",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "addsenstype",
+            "base": "",
+            "fields": [
+                {
+                    "name": "station_type",
+                    "type": "name"
+                },
+                {
+                    "name": "token_contract",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "addtoken",
+            "base": "",
+            "fields": [
+                {
+                    "name": "contract",
+                    "type": "name"
+                },
+                {
+                    "name": "symbol_letters",
+                    "type": "string"
+                },
+                {
+                    "name": "precision",
+                    "type": "uint8"
+                },
+                {
+                    "name": "usd_denominated",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "builders",
+            "base": "",
+            "fields": [
+                {
+                    "name": "builder",
+                    "type": "name"
+                },
+                {
+                    "name": "token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "evm_address",
+                    "type": "string"
+                },
+                {
+                    "name": "multiplier",
+                    "type": "float32"
+                },
+                {
+                    "name": "evm_send_enabled",
+                    "type": "bool"
+                },
+                {
+                    "name": "number_devices",
+                    "type": "uint16"
+                },
+                {
+                    "name": "balance",
+                    "type": "float32"
+                },
+                {
+                    "name": "enclosure_type",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "chngrate1",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "poor_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "good_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "great_rate",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "chngrateall",
+            "base": "",
+            "fields": [
+                {
+                    "name": "station_type",
+                    "type": "name"
+                },
+                {
+                    "name": "poor_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "good_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "great_rate",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "flags",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bit_value",
+                    "type": "uint64"
+                },
+                {
+                    "name": "processing_step",
+                    "type": "string"
+                },
+                {
+                    "name": "issue",
+                    "type": "string"
+                },
+                {
+                    "name": "explanation",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "manualpayall",
+            "base": "",
+            "fields": [
+                {
+                    "name": "num_hours",
+                    "type": "int32"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "migminers",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "migrewards",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "migsensors",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "minersv2",
+            "base": "",
+            "fields": [
+                {
+                    "name": "miner",
+                    "type": "name"
+                },
+                {
+                    "name": "token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "evm_address_str",
+                    "type": "string"
+                },
+                {
+                    "name": "evm_send_enabled",
+                    "type": "bool"
+                },
+                {
+                    "name": "balance",
+                    "type": "float32"
+                },
+                {
+                    "name": "previous_day_pay_usd",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "newperiod",
+            "base": "",
+            "fields": [
+                {
+                    "name": "period_start_time",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "parametersv1",
+            "base": "",
+            "fields": [
+                {
+                    "name": "period_start_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "period_end_time",
+                    "type": "uint64"
+                },
+                {
+                    "name": "latest_firmware_version",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "pushdata3dp",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "pressure_hpa",
+                    "type": "float32"
+                },
+                {
+                    "name": "temperature_c",
+                    "type": "float32"
+                },
+                {
+                    "name": "humidity_percent",
+                    "type": "float32"
+                },
+                {
+                    "name": "battery_millivolt",
+                    "type": "uint32"
+                },
+                {
+                    "name": "device_flags",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "pushdatafull",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "pressure_hpa",
+                    "type": "float32"
+                },
+                {
+                    "name": "temperature_c",
+                    "type": "float32"
+                },
+                {
+                    "name": "humidity_percent",
+                    "type": "float32"
+                },
+                {
+                    "name": "wind_dir_deg",
+                    "type": "float32"
+                },
+                {
+                    "name": "wind_spd_ms",
+                    "type": "float32"
+                },
+                {
+                    "name": "rain_1hr_mm",
+                    "type": "float32"
+                },
+                {
+                    "name": "light_intensity_lux",
+                    "type": "uint32"
+                },
+                {
+                    "name": "uv_index",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "pushdatanoaa",
+            "base": "",
+            "fields": [
+                {
+                    "name": "station_str",
+                    "type": "string"
+                },
+                {
+                    "name": "unix_time_s",
+                    "type": "uint64"
+                },
+                {
+                    "name": "temperature_c",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "pushdatapm",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "flags",
+                    "type": "uint16"
+                },
+                {
+                    "name": "pm1_0_ug_m3",
+                    "type": "uint32"
+                },
+                {
+                    "name": "pm2_5_ug_m3",
+                    "type": "uint32"
+                },
+                {
+                    "name": "pm4_0_ug_m3",
+                    "type": "uint32"
+                },
+                {
+                    "name": "pm10_0_ug_m3",
+                    "type": "uint32"
+                },
+                {
+                    "name": "pm1_0_n_cm3",
+                    "type": "uint32"
+                },
+                {
+                    "name": "pm2_5_n_cm3",
+                    "type": "uint32"
+                },
+                {
+                    "name": "pm4_0_n_cm3",
+                    "type": "uint32"
+                },
+                {
+                    "name": "pm10_0_n_cm3",
+                    "type": "uint32"
+                },
+                {
+                    "name": "typ_size_nm",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "pushdatatrh",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "temperature_c",
+                    "type": "float32"
+                },
+                {
+                    "name": "humidity_percent",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "raincumulate",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "unix_time_s",
+                    "type": "uint64"
+                },
+                {
+                    "name": "latitude_deg",
+                    "type": "float64"
+                },
+                {
+                    "name": "longitude_deg",
+                    "type": "float64"
+                },
+                {
+                    "name": "elevation_gps_m",
+                    "type": "uint16"
+                },
+                {
+                    "name": "rain_1hr",
+                    "type": "float32"
+                },
+                {
+                    "name": "rain_6hr",
+                    "type": "float32"
+                },
+                {
+                    "name": "rain_24hr",
+                    "type": "float32"
+                },
+                {
+                    "name": "flags",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "rainraw",
+            "base": "",
+            "fields": [
+                {
+                    "name": "unix_time_s",
+                    "type": "uint64"
+                },
+                {
+                    "name": "rain_1hr_mm",
+                    "type": "float32"
+                },
+                {
+                    "name": "flags",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "removeminer",
+            "base": "",
+            "fields": [
+                {
+                    "name": "miner",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "removeobs",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "removeoldsen",
+            "base": "",
+            "fields": [
+                {
+                    "name": "days",
+                    "type": "uint16"
+                }
+            ]
+        },
+        {
+            "name": "removereward",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "removesensor",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "rewardsv2",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "miner",
+                    "type": "name"
+                },
+                {
+                    "name": "builder",
+                    "type": "name"
+                },
+                {
+                    "name": "sponsor",
+                    "type": "name"
+                },
+                {
+                    "name": "last_miner_payout",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_builder_payout",
+                    "type": "uint64"
+                },
+                {
+                    "name": "last_sponsor_payout",
+                    "type": "uint64"
+                },
+                {
+                    "name": "poor_quality_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "good_quality_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "great_quality_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "picture_sent",
+                    "type": "bool"
+                },
+                {
+                    "name": "unique_location",
+                    "type": "bool"
+                },
+                {
+                    "name": "recommend_memo",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "sensorsv3",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "devname_uint64",
+                    "type": "uint64"
+                },
+                {
+                    "name": "station_type",
+                    "type": "name"
+                },
+                {
+                    "name": "time_created",
+                    "type": "uint64"
+                },
+                {
+                    "name": "message_type",
+                    "type": "string"
+                },
+                {
+                    "name": "firmware_version",
+                    "type": "string"
+                },
+                {
+                    "name": "voltage_mv",
+                    "type": "uint16"
+                },
+                {
+                    "name": "num_uplinks_today",
+                    "type": "uint8"
+                },
+                {
+                    "name": "num_uplinks_poor_today",
+                    "type": "uint8"
+                },
+                {
+                    "name": "num_stations_nearby",
+                    "type": "uint8"
+                },
+                {
+                    "name": "percent_uplinks_poor_previous",
+                    "type": "float32"
+                },
+                {
+                    "name": "sensor_pay_previous",
+                    "type": "float32"
+                },
+                {
+                    "name": "max_temp_today",
+                    "type": "float32"
+                },
+                {
+                    "name": "min_temp_today",
+                    "type": "float32"
+                },
+                {
+                    "name": "if_indoor",
+                    "type": "bool"
+                },
+                {
+                    "name": "permanently_damaged",
+                    "type": "bool"
+                },
+                {
+                    "name": "in_transit",
+                    "type": "bool"
+                },
+                {
+                    "name": "one_hotspot",
+                    "type": "bool"
+                },
+                {
+                    "name": "active_this_period",
+                    "type": "bool"
+                },
+                {
+                    "name": "active_last_period",
+                    "type": "bool"
+                },
+                {
+                    "name": "has_helium_miner",
+                    "type": "bool"
+                },
+                {
+                    "name": "allow_new_memo",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "setevmaddr",
+            "base": "",
+            "fields": [
+                {
+                    "name": "miner_or_builder",
+                    "type": "name"
+                },
+                {
+                    "name": "evm_address_str",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "setpicture",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "ifpicture",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "solar",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "unix_time_s",
+                    "type": "uint64"
+                },
+                {
+                    "name": "latitude_deg",
+                    "type": "float64"
+                },
+                {
+                    "name": "longitude_deg",
+                    "type": "float64"
+                },
+                {
+                    "name": "elevation_gps_m",
+                    "type": "uint16"
+                },
+                {
+                    "name": "light_intensity_lux",
+                    "type": "uint32"
+                },
+                {
+                    "name": "uv_index",
+                    "type": "uint8"
+                },
+                {
+                    "name": "flags",
+                    "type": "uint8"
+                }
+            ]
+        },
+        {
+            "name": "stationtypes",
+            "base": "",
+            "fields": [
+                {
+                    "name": "station_type",
+                    "type": "name"
+                },
+                {
+                    "name": "token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "miner_poor_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "miner_good_rate",
+                    "type": "float32"
+                },
+                {
+                    "name": "miner_great_rate",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "submitgps",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "latitude_deg",
+                    "type": "float32"
+                },
+                {
+                    "name": "longitude_deg",
+                    "type": "float32"
+                },
+                {
+                    "name": "elev_gps_m",
+                    "type": "float32"
+                },
+                {
+                    "name": "lat_deg_geo",
+                    "type": "float32"
+                },
+                {
+                    "name": "lon_deg_geo",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "tokensv2",
+            "base": "",
+            "fields": [
+                {
+                    "name": "token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "symbol_letters",
+                    "type": "string"
+                },
+                {
+                    "name": "precision",
+                    "type": "uint8"
+                },
+                {
+                    "name": "usd_denominated",
+                    "type": "bool"
+                },
+                {
+                    "name": "current_usd_price",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "updatefirm",
+            "base": "",
+            "fields": [
+                {
+                    "name": "latest_firmware_version",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "weather",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "unix_time_s",
+                    "type": "uint64"
+                },
+                {
+                    "name": "latitude_deg",
+                    "type": "float64"
+                },
+                {
+                    "name": "longitude_deg",
+                    "type": "float64"
+                },
+                {
+                    "name": "elevation_gps_m",
+                    "type": "uint16"
+                },
+                {
+                    "name": "pressure_hpa",
+                    "type": "float32"
+                },
+                {
+                    "name": "temperature_c",
+                    "type": "float32"
+                },
+                {
+                    "name": "humidity_percent",
+                    "type": "float32"
+                },
+                {
+                    "name": "dew_point",
+                    "type": "float32"
+                },
+                {
+                    "name": "flags",
+                    "type": "uint8"
+                },
+                {
+                    "name": "loc_accuracy",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "wind",
+            "base": "",
+            "fields": [
+                {
+                    "name": "devname",
+                    "type": "name"
+                },
+                {
+                    "name": "unix_time_s",
+                    "type": "uint64"
+                },
+                {
+                    "name": "latitude_deg",
+                    "type": "float64"
+                },
+                {
+                    "name": "longitude_deg",
+                    "type": "float64"
+                },
+                {
+                    "name": "elevation_gps_m",
+                    "type": "uint16"
+                },
+                {
+                    "name": "wind_dir_deg",
+                    "type": "float32"
+                },
+                {
+                    "name": "wind_spd_ms",
+                    "type": "float32"
+                },
+                {
+                    "name": "flags",
+                    "type": "uint8"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "addbuilder",
+            "type": "addbuilder",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addevmminer",
+            "type": "addevmminer",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addflag",
+            "type": "addflag",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addminer",
+            "type": "addminer",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addnoaa",
+            "type": "addnoaa",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addsensor",
+            "type": "addsensor",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addsenstype",
+            "type": "addsenstype",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "addtoken",
+            "type": "addtoken",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "chngrate1",
+            "type": "chngrate1",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "chngrateall",
+            "type": "chngrateall",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "manualpayall",
+            "type": "manualpayall",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "migminers",
+            "type": "migminers",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "migrewards",
+            "type": "migrewards",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "migsensors",
+            "type": "migsensors",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "newperiod",
+            "type": "newperiod",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "pushdata3dp",
+            "type": "pushdata3dp",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "pushdatafull",
+            "type": "pushdatafull",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "pushdatanoaa",
+            "type": "pushdatanoaa",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "pushdatapm",
+            "type": "pushdatapm",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "pushdatatrh",
+            "type": "pushdatatrh",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removeminer",
+            "type": "removeminer",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removeobs",
+            "type": "removeobs",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removeoldsen",
+            "type": "removeoldsen",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removereward",
+            "type": "removereward",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "removesensor",
+            "type": "removesensor",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setevmaddr",
+            "type": "setevmaddr",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "setpicture",
+            "type": "setpicture",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "submitgps",
+            "type": "submitgps",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "updatefirm",
+            "type": "updatefirm",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "builders",
+            "type": "builders",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "flags",
+            "type": "flags",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "minersv2",
+            "type": "minersv2",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "parametersv1",
+            "type": "parametersv1",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "raincumulate",
+            "type": "raincumulate",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "rainraw",
+            "type": "rainraw",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "rewardsv2",
+            "type": "rewardsv2",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "sensorsv3",
+            "type": "sensorsv3",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "solar",
+            "type": "solar",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "sponsors",
+            "type": "builders",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "stationtypes",
+            "type": "stationtypes",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "tokensv2",
+            "type": "tokensv2",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "weather",
+            "type": "weather",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "wind",
+            "type": "wind",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "kv_tables": {},
+    "ricardian_clauses": [],
+    "variants": [],
+    "action_results": []
+}
