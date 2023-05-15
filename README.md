@@ -1,5 +1,7 @@
 # eosio-smart-contract
-The native Antelope C++ smart contract files for AscensionWx Miners
+The native Antelope C++ smart contract files for ground-based Weather Miners
+
+For Kanda Weather (Africa) and AscensionWx (U.S.), and open under MIT license.
 
 Features:
 - Temperature/humidity QC quality score based on nearby stations
